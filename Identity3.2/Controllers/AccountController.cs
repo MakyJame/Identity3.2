@@ -81,7 +81,7 @@ namespace Identity3._2.Controllers
                 Console.WriteLine($"IsNotAllowed: {result.IsNotAllowed}");
                 Console.WriteLine($"RequiresTwoFactor: {result.RequiresTwoFactor}");
 
-                ModelState.AddModelError("", "Invalid login attempt.");
+                ModelState.AddModelError("  ", "Invalid login attempt.");
             }
             return View(model);
         }

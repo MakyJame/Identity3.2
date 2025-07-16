@@ -7,23 +7,25 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using Identity3._2.Models;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Authorization;
 
 namespace Identity3._2.Controllers
 {
+    [Authorize(Roles ="Admin")]
     public class UserController : Controller
     {
         private readonly UserManager<ApplicationUser> _userManager;
-        private readonly SignInManager<ApplicationUser> _signInManager;
 
-        public UserController(UserManager<ApplicationUser> userManager, SignInManager<ApplicationUser> signInManager)
+        public UserController(UserManager<ApplicationUser> userManager)
         {
             _userManager = userManager;
-            _signInManager = signInManager;
         }
+
         // GET: User
-        public  IActionResult Index()
+        public IActionResult Index()
         {
-            var user = _userManager.Users.ToList();
+            var users = _userManager.Users.ToList();
+            return View(users);
         }
 
         // GET: User/Details/5
@@ -34,8 +36,7 @@ namespace Identity3._2.Controllers
                 return NotFound();
             }
 
-            var applicationUser = await _context.Users
-                .FirstOrDefaultAsync(m => m.Id == id);
+            var applicationUser = await _userManager.FindByIdAsync(id);
             if (applicationUser == null)
             {
                 return NotFound();
@@ -55,13 +56,23 @@ namespace Identity3._2.Controllers
         // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("FullName,Id,UserName,NormalizedUserName,Email,NormalizedEmail,EmailConfirmed,PasswordHash,SecurityStamp,ConcurrencyStamp,PhoneNumber,PhoneNumberConfirmed,TwoFactorEnabled,LockoutEnd,LockoutEnabled,AccessFailedCount")] ApplicationUser applicationUser)
+        public async Task<IActionResult> Create([Bind("FullName,Email,PhoneNumber")] ApplicationUser applicationUser, string password)
         {
             if (ModelState.IsValid)
             {
-                _context.Add(applicationUser);
-                await _context.SaveChangesAsync();
-                return RedirectToAction(nameof(Index));
+                var user = new ApplicationUser
+                {
+                    UserName = applicationUser.Email,
+                    Email = applicationUser.Email,
+                    PhoneNumber = applicationUser.PhoneNumber,
+                    FullName = applicationUser.FullName
+                };
+                var result = await _userManager.CreateAsync(user, password);
+                if (result.Succeeded)
+                {
+                    await _userManager.AddToRoleAsync(user, "Staff");
+                    return RedirectToAction("Index");
+                }
             }
             return View(applicationUser);
         }
@@ -74,7 +85,7 @@ namespace Identity3._2.Controllers
                 return NotFound();
             }
 
-            var applicationUser = await _context.Users.FindAsync(id);
+            var applicationUser = await _userManager.FindByIdAsync(id);
             if (applicationUser == null)
             {
                 return NotFound();
@@ -87,7 +98,7 @@ namespace Identity3._2.Controllers
         // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(string id, [Bind("FullName,Id,UserName,NormalizedUserName,Email,NormalizedEmail,EmailConfirmed,PasswordHash,SecurityStamp,ConcurrencyStamp,PhoneNumber,PhoneNumberConfirmed,TwoFactorEnabled,LockoutEnd,LockoutEnabled,AccessFailedCount")] ApplicationUser applicationUser)
+        public async Task<IActionResult> Edit(string id, [Bind("Id,FullName,Email,PhoneNumber")] ApplicationUser applicationUser)
         {
             if (id != applicationUser.Id)
             {
@@ -96,23 +107,24 @@ namespace Identity3._2.Controllers
 
             if (ModelState.IsValid)
             {
-                try
+                var user = await _userManager.FindByIdAsync(id);
+                if (user == null) return NotFound();
+                user.FullName = applicationUser.FullName;
+                user.PhoneNumber = applicationUser.PhoneNumber;
+                user.Email = applicationUser.Email;
+                user.UserName = applicationUser.Email;
+
+                var updateResult = await _userManager.UpdateAsync(user);
+
+                if (!updateResult.Succeeded)
                 {
-                    _context.Update(applicationUser);
-                    await _context.SaveChangesAsync();
-                }
-                catch (DbUpdateConcurrencyException)
-                {
-                    if (!ApplicationUserExists(applicationUser.Id))
+                    foreach (var error in updateResult.Errors)
                     {
-                        return NotFound();
+                        ModelState.AddModelError("", error.Description);
                     }
-                    else
-                    {
-                        throw;
-                    }
-                }
-                return RedirectToAction(nameof(Index));
+                    return View(applicationUser);
+                }   
+                return RedirectToAction("Index");
             }
             return View(applicationUser);
         }
@@ -125,8 +137,7 @@ namespace Identity3._2.Controllers
                 return NotFound();
             }
 
-            var applicationUser = await _context.Users
-                .FirstOrDefaultAsync(m => m.Id == id);
+            var applicationUser = await _userManager.FindByIdAsync(id);
             if (applicationUser == null)
             {
                 return NotFound();
@@ -140,19 +151,17 @@ namespace Identity3._2.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(string id)
         {
-            var applicationUser = await _context.Users.FindAsync(id);
+            var applicationUser = await _userManager.FindByIdAsync(id);
             if (applicationUser != null)
             {
-                _context.Users.Remove(applicationUser);
+                await _userManager.DeleteAsync(applicationUser);
             }
-
-            await _context.SaveChangesAsync();
             return RedirectToAction(nameof(Index));
         }
 
-        private bool ApplicationUserExists(string id)
-        {
-            return _context.Users.Any(e => e.Id == id);
-        }
+        //private bool ApplicationUserExists(string id)
+        //{
+        //    return _context.Users.Any(e => e.Id == id);
+        //}
     }
 }
