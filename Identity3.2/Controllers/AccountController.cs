@@ -63,25 +63,26 @@ namespace Identity3._2.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Login(LoginViewModel model)
         {
-            var user = await _userManager.FindByEmailAsync("diepvienali99@gmail.com");
-            if (user != null)
-            {
-                var token = await _userManager.GeneratePasswordResetTokenAsync(user);
-                await _userManager.ResetPasswordAsync(user, token, "123456tai");
-            }
             if (ModelState.IsValid)
             {
                 var result = await _signInManager.PasswordSignInAsync(model.Email, model.Password, model.RememberMe, lockoutOnFailure: false);
                 if (result.Succeeded)
                 {
-                    return RedirectToAction("Index", "Home");
+                    var user = await _userManager.FindByEmailAsync(model.Email);
+                    if (user != null)
+                    {
+                        if((await _userManager.GetRolesAsync(user)).Contains("Admin"))
+                        {
+                            return RedirectToAction("Index", "User");
+                        }
+                        else
+                        {
+                            return RedirectToAction("Index", "Staff");
+                        }
+                    }
                 }
                 Console.WriteLine($"Login failed: Email={model.Email}, Password={model.Password}");
-                Console.WriteLine($"IsLockedOut: {result.IsLockedOut}");
-                Console.WriteLine($"IsNotAllowed: {result.IsNotAllowed}");
-                Console.WriteLine($"RequiresTwoFactor: {result.RequiresTwoFactor}");
-
-                ModelState.AddModelError("  ", "Invalid login attempt.");
+                ModelState.AddModelError("", "Invalid login attempt.");
             }
             return View(model);
         }

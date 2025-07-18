@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -11,7 +11,7 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace Identity3._2.Controllers
 {
-    [Authorize(Roles ="Admin")]
+    [Authorize(Roles = "Admin")]
     public class UserController : Controller
     {
         private readonly UserManager<ApplicationUser> _userManager;
@@ -29,6 +29,7 @@ namespace Identity3._2.Controllers
         }
 
         // GET: User/Details/5
+        [AllowAnonymous]
         public async Task<IActionResult> Details(string id)
         {
             if (id == null)
@@ -123,7 +124,7 @@ namespace Identity3._2.Controllers
                         ModelState.AddModelError("", error.Description);
                     }
                     return View(applicationUser);
-                }   
+                }
                 return RedirectToAction("Index");
             }
             return View(applicationUser);
@@ -159,6 +160,43 @@ namespace Identity3._2.Controllers
             return RedirectToAction(nameof(Index));
         }
 
+        [AllowAnonymous]
+        public IActionResult ChangePassword()
+        {
+            return View();
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [AllowAnonymous]
+        public async Task<IActionResult> ChangePassword(string oldPassword, string newPassword, string confirm)
+        {
+            if (string.IsNullOrEmpty(newPassword) || string.IsNullOrEmpty(newPassword) || string.IsNullOrEmpty(confirm))
+            {
+                ModelState.AddModelError("", "Please enter your old password and new password in full.");
+                return View();
+            }
+            if(newPassword != confirm)
+            {
+                ModelState.AddModelError("", "New password and confirm password do not match ");
+                return View();
+            }
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null)
+            {
+                return RedirectToAction("Login", "Account");
+            }
+            var result = await _userManager.ChangePasswordAsync(user, oldPassword, newPassword);
+            if (result.Succeeded)
+            {
+                ViewBag.Message = "Mật khẩu đã được thay đổi thành công.";
+                return View();
+            }
+            foreach (var error in result.Errors)
+            {
+                ModelState.AddModelError("", error.Description);
+            }
+            return View();
+        }
         //private bool ApplicationUserExists(string id)
         //{
         //    return _context.Users.Any(e => e.Id == id);
