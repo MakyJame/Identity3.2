@@ -1,4 +1,4 @@
-using Identity3._2.Data;
+﻿using Identity3._2.Data;
 using Identity3._2.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -12,6 +12,9 @@ options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnectio
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>()
     .AddEntityFrameworkStores<AppDbContext>()
     .AddDefaultTokenProviders();
+
+
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
